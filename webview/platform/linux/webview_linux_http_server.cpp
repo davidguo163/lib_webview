@@ -142,13 +142,10 @@ bool HttpServer::Private::processRedirect(
 			if (!reply->hasRawHeader(name)) {
 				continue;
 			}
-			socket->write(
-				std::format(
-					"{}: {}\r\n",
-					name,
-					reply->rawHeader(name).toStdString()
-				).c_str()
-			);
+			socket->write(name);
+			socket->write(": ");
+			socket->write(reply->rawHeader(name));
+			socket->write("\r\n");
 		}
 		socket->write("Cache-Control: no-store\r\n");
 		socket->write("\r\n");

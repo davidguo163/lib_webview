@@ -32,7 +32,7 @@ struct NavigationHistoryState {
 	bool canGoBack : 1 = false;
 	bool canGoForward : 1 = false;
 
-	friend inline constexpr bool operator==(
+	friend inline bool operator==(
 		NavigationHistoryState,
 		NavigationHistoryState) = default;
 };

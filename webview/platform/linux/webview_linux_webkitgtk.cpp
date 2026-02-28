@@ -36,7 +36,7 @@
 #include <webview/webview.hpp>
 #include <crl/crl.h>
 #include <rpl/rpl.h>
-#include <format>
+#include <string>
 
 namespace Webview::WebKitGTK {
 namespace {
@@ -788,7 +788,7 @@ bool Instance::startDataServer() {
 }
 
 std::string Instance::dataDomain() {
-	return std::format("http://{}:{}/", kDataHost, std::to_string(_dataPort));
+	return std::string("http://") + kDataHost + ":" + std::to_string(_dataPort) + "/";
 }
 
 void Instance::dataRequest(
@@ -1081,11 +1081,10 @@ void Instance::setOpaqueBg(QColor opaqueBg) {
 		return;
 	}
 
-	const auto background = std::format(
-		".webviewWindow {{background: {};}}",
-		_platform == Platform::Wayland
-			? "transparent"
-			: opaqueBg.name().toStdString());
+	const auto bgValue = _platform == Platform::Wayland
+		? std::string("transparent")
+		: opaqueBg.name().toStdString();
+	const auto background = std::string(".webviewWindow {background: ") + bgValue + ";}";
 
 	if (gtk_css_provider_load_from_string) {
 		gtk_css_provider_load_from_string(
@@ -1160,11 +1159,12 @@ void Instance::startProcess() {
 
 	_serviceProcess = *serviceProcess;
 
-	const auto socketPath = std::vformat(
-		std::string_view(SocketPath),
-		std::make_format_args(
-			static_cast<const std::string>(
-				_serviceProcess.get_identifier())));
+	auto socketPath = SocketPath;
+	{
+		const auto id = static_cast<const std::string>(_serviceProcess.get_identifier());
+		const auto pos = socketPath.find("{}");
+		if (pos != std::string::npos) socketPath.replace(pos, 2, id);
+	}
 
 	if (socketPath.empty()) {
 		LOG(("WebView Error: IPC socket path is not set."));
@@ -1452,12 +1452,12 @@ int Instance::exec() {
 #endif // !__has_include(<giounix/giounix.hpp>)
 
 	auto connection = Gio::DBusConnection::new_for_address_sync(
-		SocketPathToDBusAddress(
-			std::vformat(
-				std::string_view(SocketPath),
-				std::make_format_args(
-					static_cast<const std::string>(
-						std::to_string(getpid()))))),
+		SocketPathToDBusAddress([&]{
+			auto s = SocketPath;
+			const auto pos = s.find("{}");
+			if (pos != std::string::npos) s.replace(pos, 2, std::to_string(getpid()));
+			return s;
+		}()),
 		Gio::DBusConnectionFlags::AUTHENTICATION_CLIENT_);
 
 	if (!connection) {
